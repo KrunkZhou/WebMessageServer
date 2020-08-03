@@ -1,7 +1,7 @@
 # WebMessageServer
 在网页上查看放在家里的手机上的短信, 帮助多卡用户接收短信以及验证码而不需要随身携带所有的SIM卡
 
-Demo: <a href="https://krunk.cn/krunk/msgserver/">https://krunk.cn/msgserver/</a>
+Demo: <a href="https://krunk.cn/krunk/msgserver/">https://krunk.cn/krunk/msgserver/</a>
 
 # 准备工作
 此项目的作用为帮助多卡用户接收短信以及验证码而不需要随身携带所有的SIM卡
