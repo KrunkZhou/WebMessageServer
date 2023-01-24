@@ -1,7 +1,9 @@
 package cn.krunk.msgserver;
 
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
@@ -11,12 +13,28 @@ import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.widget.EditText;
 import android.widget.TextView;
 import android.Manifest;
 import android.widget.Toast;
+
+import com.android.volley.Cache;
+import com.android.volley.Network;
+import com.android.volley.Request;
+import com.android.volley.RequestQueue;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.BasicNetwork;
+import com.android.volley.toolbox.DiskBasedCache;
+import com.android.volley.toolbox.HurlStack;
+import com.android.volley.toolbox.StringRequest;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -56,6 +74,37 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             case R.id.connect_server:
                 startActivity(new Intent(MainActivity.this, ScannedBarcodeActivity.class));
+                return true;
+            case R.id.connect_server_manual:
+
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle("输入二维码中的字符串");
+                final EditText input = new EditText(this);
+                input.setInputType(InputType.TYPE_CLASS_TEXT);
+                builder.setView(input);
+                builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        String barcodes = input.getText().toString();
+                        if (barcodes.startsWith("KrunkMsgServer://")){
+                            String intentData = barcodes.substring(17);
+                            String[] data = intentData.split("/-kbr-/");
+                            Context context = getApplicationContext();
+                            requestRegister(context,data[0],data[1]);
+                            finish();
+                        }else{
+                            Context context = getApplicationContext();
+                            Toast.makeText(context, "格式错误", Toast.LENGTH_LONG).show();
+                        }
+                    }
+                });
+                builder.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.cancel();
+                    }
+                });
+                builder.show();
                 return true;
             case R.id.about:
                 Toast.makeText(context, "KRUNK DESIGN\nhttps://krunk.cn\n\n此项目的作用为帮助多卡用户接收短信以及验证码而不需要随身携带所有的SIM卡", Toast.LENGTH_LONG).show();
@@ -157,5 +206,37 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
 
         unregisterReceiver(connectionReceiver);
+    }
+
+    public void requestRegister(final Context context, final String url, final String connectionkey){
+        RequestQueue requestQueue;
+        Cache cache = new DiskBasedCache(context.getCacheDir(), 1024 * 1024); // 1MB cap
+        Network network = new BasicNetwork(new HurlStack());
+        requestQueue = new RequestQueue(cache, network);
+        requestQueue.start();
+
+        StringRequest stringRequest = new StringRequest(Request.Method.POST, url+"register.php",
+                new Response.Listener<String>() {
+                    @Override
+                    public void onResponse(String response) {
+                        sharedPref.edit().putString("MsgServer_url", url).apply();
+                        sharedPref.edit().putString("MsgServer_key", response).apply();
+                        Toast.makeText(context, "绑定服务器成功"+"\n"+url+"\n"+response, Toast.LENGTH_LONG).show();
+                    }
+                }, new Response.ErrorListener() { //Create an error listener to handle errors appropriately.
+            @Override
+            public void onErrorResponse(VolleyError error) {
+                //This code is executed if there is an error.
+                Toast.makeText(context, "绑定服务器\n"+"传输失败\n"+error.toString(), Toast.LENGTH_LONG).show();
+            }
+        }){
+            protected Map<String, String> getParams() {
+                Map<String, String> MyData = new HashMap<String, String>();
+                MyData.put("connectionkey", connectionkey);
+                return MyData;
+            }
+        };
+        // Add the request to the RequestQueue.
+        requestQueue.add(stringRequest);
     }
 }
